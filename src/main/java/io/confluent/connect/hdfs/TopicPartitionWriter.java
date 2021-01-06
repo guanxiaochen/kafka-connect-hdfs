@@ -18,6 +18,7 @@ package io.confluent.connect.hdfs;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.connect.connector.ConnectRecord;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.IllegalWorkerStateException;
@@ -357,7 +358,7 @@ public class TopicPartitionWriter {
             currentRecord = record;
             Schema valueSchema = record.valueSchema();
             if ((recordCounter <= 0 && currentSchema == null && valueSchema != null)
-                || compatibility.shouldChangeSchema(record, null, currentSchema)) {
+                || shouldChangeSchema(record, currentSchema, compatibility)) {
               currentSchema = valueSchema;
               if (hiveIntegration) {
                 createHiveTable();
@@ -454,6 +455,22 @@ public class TopicPartitionWriter {
       resume();
       state = State.WRITE_STARTED;
     }
+  }
+
+  public boolean shouldChangeSchema(ConnectRecord<?> record, Schema currentSchema,
+                                    StorageSchemaCompatibility compatibility) {
+    Schema valueSchema = record.valueSchema();
+    if (valueSchema != null && currentSchema != null
+            && (valueSchema.version() == null && currentSchema.version() == null)) {
+      switch (compatibility) {
+        case BACKWARD:
+        case FULL:
+        case FORWARD:
+          return false;
+        default:
+      }
+    }
+    return compatibility.shouldChangeSchema(record, null, currentSchema);
   }
 
   public void close() throws ConnectException {

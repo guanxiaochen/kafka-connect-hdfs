@@ -340,7 +340,6 @@ public class WALFile {
       }
     }
 
-    @Override
     public void sync() throws IOException {
       if (sync != null && lastSyncPos != out.getPos()) {
         out.writeInt(SYNC_ESCAPE);                // mark the start of the sync
